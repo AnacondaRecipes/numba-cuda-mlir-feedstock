@@ -137,7 +137,4 @@ export MLIR_DIR="${LLVM_MODERN_INSTALL}/lib/cmake/mlir"
 # we bundle it with the package.
 export LIBLLVM7="${LLVM7_INSTALL}/lib/libLLVM-7.so"
 
-"${PYTHON}" -m pip install . \
-    --no-build-isolation \
-    --no-deps \
-    -vv
+"${PYTHON}" -m pip install . -vv --no-deps --no-build-isolation
