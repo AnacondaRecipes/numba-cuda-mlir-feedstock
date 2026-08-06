@@ -55,14 +55,14 @@ requirements:
     - setuptools >=64
     - wheel
     # Build deps for the modern LLVM/MLIR Python bindings:
-    - numpy
+    - numpy {{ numpy }}
     - pybind11
     # nanobind >2.13 breaks numba-cuda-mlir's MLIR bindings
     - nanobind >=2.9,<2.13
     - dlpack
     # The LLVM-C.dll that we create here for Windows links against zlib. Remove if we
     # migrate LLVM-C.dll creation to the llvmdev-feedstock.
-    - zlib  # [win]
+    - zlib  {{ zlib }} # [win]
     # CUDA headers only (no nvcc). numba-cuda-mlir handles CUDA ABI compat at
     # runtime, so the build-time CUDA version is not significant. NVRTC/nvJitLink
     # headers aren't needed at build time (those libraries are dlopen'd).
@@ -77,6 +77,7 @@ requirements:
     - python
     - numpy
     - typing-extensions  # [py<312]
+    # TODO: check if we can remove the 'packaging' dependency
     - packaging
     - cuda-version >=12.2,<14.0.0a0
     - cuda-cudart-dev
@@ -109,8 +110,10 @@ about:
   license_file:
     - src/LICENSE
     - src/THIRD-PARTY-LICENSES
+  license_family: Other
   summary: numba-cuda-mlir Python Compiler (MLIR/LLVM CUDA kernel backend)
   dev_url: https://github.com/NVIDIA/numba-cuda-mlir
+  doc_url: https://nvidia.github.io/numba-cuda-mlir
 
 extra:
   recipe-maintainers:
