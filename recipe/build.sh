@@ -1,16 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
-#
-# Local debug builds (compiler cache persists across runs):
-# $ export SCCACHE_DIR=/home/you/.cache/sccache
-# $ sccache --show-stats   # "Cache location" must read: Local disk: $SCCACHE_DIR
-# $ rattler-build build --no-build-id --env-isolation none --recipe recipe/recipe.yaml -m .ci_support/linux_64_python3.14.____cp314.yaml
-#
-# --env-isolation none forwards HOME + SCCACHE_DIR into the build; the default (strict)
-# normalizes HOME and strips host env, so sccache would instead write to a throwaway
-# build-local dir that is wiped after the build.
-# --no-build-id keeps the build path stable so the cache actually hits on the next run.
+
 set -euo pipefail
 
 cd "${SRC_DIR}/src"
@@ -20,26 +11,19 @@ export PARALLEL
 export PYTHON="${PREFIX}/bin/python"
 
 
-export BUILD_ROOT="${SRC_DIR}/_llvm_build"
+export BUILD_ROOT="${SRC_DIR}/_build"
+export LLVM_MODERN_BUILD_ROOT="${BUILD_ROOT}/llvm"
 export LLVM_MODERN_INSTALL="${SRC_DIR}/llvm-modern-install"
 export LLVM_MODERN_SRC="${SRC_DIR}/llvm-modern-src"
 
-# sccache speeds up local rebuilds; skip it in CI (cold cache). conda-forge sets
-# CI=azure|github_actions.
-if [ -z "${CI:-}" ]; then
-  command -v sccache &>/dev/null || { echo "ERROR: sccache not found"; exit 1; }
-  export CMAKE_C_COMPILER_LAUNCHER=sccache
-  export CMAKE_CXX_COMPILER_LAUNCHER=sccache
-fi
-
 echo "=============================================================="
-echo "Step 1/2: Modern LLVM/MLIR + Python bindings"
+echo "Step 1a/2: Modern LLVM/MLIR + Python bindings"
 echo "=============================================================="
 
 cmake_args=(
     -G Ninja
     -S "${LLVM_MODERN_SRC}/llvm"
-    -B "${BUILD_ROOT}"
+    -B "${LLVM_MODERN_BUILD_ROOT}"
     -DCMAKE_BUILD_TYPE=Release
     -DCMAKE_INSTALL_PREFIX="${LLVM_MODERN_INSTALL}"
     -DLLVM_ENABLE_PROJECTS=mlir
@@ -84,9 +68,61 @@ if [[ "$("${PYTHON}" -c 'import sysconfig; print(sysconfig.get_config_var("ABIFL
 fi
 
 cmake "${cmake_args[@]}"
-cmake --build "${BUILD_ROOT}" -j "${PARALLEL}"
-cmake --install "${BUILD_ROOT}"
-[ -z "${CI:-}" ] && sccache --show-stats
+cmake --build "${LLVM_MODERN_BUILD_ROOT}" -j "${PARALLEL}"
+cmake --install "${LLVM_MODERN_BUILD_ROOT}"
+
+echo "=============================================================="
+echo "Step 1b/2: LLVM 7"
+echo "=============================================================="
+
+# We don't have "libllvm7.1" package in the Anaconda main channel.
+# Because of the pre-Blackwell GPUs whose libnvvm expects the LLVM 7
+# dialect of NVVM IR, we have to build LLVM 7.1.0 as per the instructions
+# on the 'INSTALL.md' file.
+# Ref: https://github.com/NVIDIA/numba-cuda-mlir/tree/main/cext/mlir-llvm70
+
+# Set LLVM7 variables
+export LLVM7_BUILD_ROOT="${BUILD_ROOT}/llvm7"
+export LLVM7_SRC="${SRC_DIR}/llvm7-src"
+export LLVM7_INSTALL="${SRC_DIR}/llvm7-install"
+
+# Patch CMP0051 OLD → NEW for modern CMake compatibility
+sed -i 's/cmake_policy(SET CMP0051 OLD)/cmake_policy(SET CMP0051 NEW)/' \
+    "${LLVM7_SRC}/llvm/CMakeLists.txt"
+
+# Configure
+cmake -G Ninja -S "${LLVM7_SRC}/llvm" -B "${LLVM7_BUILD_ROOT}" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX="${LLVM7_INSTALL}" \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+    -DLLVM_TARGETS_TO_BUILD="NVPTX" \
+    -DLLVM_BUILD_LLVM_DYLIB=ON \
+    -DLLVM_BUILD_TOOLS=OFF \
+    -DLLVM_BUILD_UTILS=OFF \
+    -DLLVM_BUILD_EXAMPLES=OFF \
+    -DLLVM_INCLUDE_TESTS=OFF \
+    -DLLVM_INCLUDE_BENCHMARKS=OFF \
+    -DLLVM_INCLUDE_DOCS=OFF \
+    -DLLVM_ENABLE_TERMINFO=OFF \
+    -DLLVM_ENABLE_ZLIB=ON
+
+# Build only the LLVM shared lib
+cmake --build "${LLVM7_BUILD_ROOT}" -j "${PARALLEL}" --target LLVM
+
+# Inspired from: <project-repo>/ci/llvm7-install.sh
+#
+# LLVM 7's tools/llvm-shlib creates extra compatibility symlinks
+# (libLLVM-7.so, libLLVM.so -> libLLVM-7.1.so)
+# regardless of CMAKE_PLATFORM_NO_VERSIONED_SONAME.
+# The narrow `cp` + manual `strip` avoids that entirely.
+LLVM7_SO="$(ls "${LLVM7_BUILD_ROOT}"/lib/libLLVM-7*.so | head -1)"
+strip --strip-unneeded "${LLVM7_SO}"
+cp "${LLVM7_SO}" "${LLVM7_INSTALL}/lib/libLLVM-7.so"
+
+# Leaving 'cmake --install ...' here for debugging purposes.
+# Note that CMake automatically runs binary stripping when
+# CMAKE_BUILD_TYPE is set to 'Release'.
+#cmake --install "${LLVM7_BUILD_ROOT}"
 
 echo "=============================================================="
 echo "Step 2/2: numba_cuda_mlir wheel"
@@ -97,17 +133,11 @@ echo "=============================================================="
 export CUDAToolkit_ROOT="${PREFIX}"
 export DLPACK_PATH="${PREFIX}"
 export MLIR_DIR="${LLVM_MODERN_INSTALL}/lib/cmake/mlir"
-# LIBLLVM7 intentionally unset: we don't bundle libLLVM-7.so. The legacy LLVM 7
-# runtime is provided by the libllvm7.1 conda package (see symlink below).
+# Since we don't have 'libllvm7.1' package in the main channel,
+# we bundle it with the package.
+export LIBLLVM7="${LLVM7_INSTALL}/lib/libLLVM-7.so"
 
 "${PYTHON}" -m pip install . \
     --no-build-isolation \
     --no-deps \
     -vv
-
-# numba-cuda-mlir's runtime loader looks for a bundled
-# numba_cuda_mlir/lib/libLLVM-7.so. Point that at the conda libllvm7.1 library
-SP="$("${PYTHON}" -c "import sysconfig; print(sysconfig.get_paths()['platlib'])")"
-mkdir -p "${SP}/numba_cuda_mlir/lib"
-# $SP/numba_cuda_mlir/lib -> up 4 -> $PREFIX/lib
-ln -sf ../../../../libLLVM-7.1.so "${SP}/numba_cuda_mlir/lib/libLLVM-7.so"
