@@ -1,5 +1,5 @@
 {% set version = "0.4.2" %}
-# Defined in <project-repo>/ci/llvm-version.env
+# Defined in <project-repo>/ci/llvm-version.env (LLVM 23.x trunk commit)
 {% set llvm_modern_commit = "3cbe75b1433a90a28db068d700b7effd2de8f401" %}
 # Defined in <project-repo>/ci/llvm-version.env ('llvmorg-7.1.0' git tag)
 {% set llvm7_commit = "4856a9330ee01d30e9e11b6c2f991662b4c04b07" %}
@@ -62,7 +62,10 @@ requirements:
     - dlpack
     # The LLVM-C.dll that we create here for Windows links against zlib. Remove if we
     # migrate LLVM-C.dll creation to the llvmdev-feedstock.
-    - zlib  {{ zlib }} # [win]
+    # Anaconda: libLLVM-7.so links against 'libz'.
+    - zlib  {{ zlib }}
+    # Anaconda: libLLVM-7.so links against 'libxml2'
+    - libxml2 {{ libxml2 }}
     # CUDA headers only (no nvcc). numba-cuda-mlir handles CUDA ABI compat at
     # runtime, so the build-time CUDA version is not significant. NVRTC/nvJitLink
     # headers aren't needed at build time (those libraries are dlopen'd).
@@ -77,8 +80,6 @@ requirements:
     - python
     - numpy
     - typing-extensions  # [py<312]
-    # TODO: check if we can remove the 'packaging' dependency
-    - packaging
     - cuda-version >=12.2,<14.0.0a0
     - cuda-cudart-dev
     - cuda-nvrtc
