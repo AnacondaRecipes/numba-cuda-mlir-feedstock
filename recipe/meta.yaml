@@ -14,6 +14,7 @@ source:
     folder: src
     patches:
       - patches/pin-python-executable.patch
+      - patches/0001-use-env-variables-to-unvendor-dlpack.patch
   - url: https://github.com/llvm/llvm-project/archive/{{ llvm_modern_commit }}.tar.gz
     sha256: a2d6587b0793f7f6fb21c4607e6d86cd40377686f58162fbae5e206d2e24dfe2
     folder: llvm-modern-src
@@ -49,6 +50,7 @@ requirements:
     - cmake >=3.24
     - ninja-base
     - make  # [unix]
+    - git
   host:
     - python
     - pip
