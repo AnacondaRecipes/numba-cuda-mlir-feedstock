@@ -4,15 +4,11 @@
 
 set -euo pipefail
 
-cd "${SRC_DIR}/src"
-
 PARALLEL="${PARALLEL:-${CPU_COUNT:-$(nproc)}}"
 export PARALLEL
 export PYTHON="${PREFIX}/bin/python"
 
-
-export BUILD_ROOT="${SRC_DIR}/_build"
-export LLVM_MODERN_BUILD_ROOT="${BUILD_ROOT}/llvm"
+export LLVM_MODERN_BUILD_ROOT="${SRC_DIR}/llvm-modern-build"
 export LLVM_MODERN_INSTALL="${SRC_DIR}/llvm-modern-install"
 export LLVM_MODERN_SRC="${SRC_DIR}/llvm-modern-src"
 
@@ -82,7 +78,7 @@ echo "=============================================================="
 # Ref: https://github.com/NVIDIA/numba-cuda-mlir/tree/main/cext/mlir-llvm70
 
 # Set LLVM7 variables
-export LLVM7_BUILD_ROOT="${BUILD_ROOT}/llvm7"
+export LLVM7_BUILD_ROOT="${SRC_DIR}/llvm7-build"
 export LLVM7_SRC="${SRC_DIR}/llvm7-src"
 export LLVM7_INSTALL="${SRC_DIR}/llvm7-install"
 
@@ -117,7 +113,12 @@ cmake --build "${LLVM7_BUILD_ROOT}" -j "${PARALLEL}" --target LLVM
 # The narrow `cp` + manual `strip` avoids that entirely.
 LLVM7_SO="$(ls "${LLVM7_BUILD_ROOT}"/lib/libLLVM-7*.so | head -1)"
 strip --strip-unneeded "${LLVM7_SO}"
-cp "${LLVM7_SO}" "${LLVM7_INSTALL}/lib/libLLVM-7.so"
+mkdir -p ${LLVM7_INSTALL}/lib
+cp "${LLVM7_SO}" "${LLVM7_INSTALL}/lib/libLLVM-7.1.so"
+# This might be unnecessary, but it also creates a safety net for upstream
+# vendor hardcoding 'libLLVM-7.so' into the build scripts / configs.
+# There is no harm keeping it here.
+ln -s "${LLVM7_INSTALL}/lib/libLLVM-7.1.so" "${LLVM7_INSTALL}/lib/libLLVM-7.so"
 
 # Leaving 'cmake --install ...' here for debugging purposes.
 # Note that CMake automatically runs binary stripping when
@@ -128,6 +129,8 @@ echo "=============================================================="
 echo "Step 2/2: numba_cuda_mlir wheel"
 echo "=============================================================="
 
+cd "${SRC_DIR}/src"
+
 # CUDA headers come from the conda host env; FindCUDAToolkit.cmake honors
 # $CUDAToolkit_ROOT for cuda.h.
 export CUDAToolkit_ROOT="${PREFIX}"
@@ -135,6 +138,9 @@ export DLPACK_PATH="${PREFIX}"
 export MLIR_DIR="${LLVM_MODERN_INSTALL}/lib/cmake/mlir"
 # Since we don't have 'libllvm7.1' package in the main channel,
 # we bundle it with the package.
+# In any case, 'pip install' command below will follow the symlink
+# and copy the file to '<site-packages>/numba_cuda_mlir/lib/libLLVM-7.so'
+# So, '<SP>/numba_cuda_mlir/lib/libLLVM-7.so' will not be a symlink.
 export LIBLLVM7="${LLVM7_INSTALL}/lib/libLLVM-7.so"
 
 "${PYTHON}" -m pip install . -vv --no-deps --no-build-isolation
