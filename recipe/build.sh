@@ -4,16 +4,12 @@
 
 set -euo pipefail
 
-PARALLEL="${PARALLEL:-${CPU_COUNT:-$(nproc)}}"
-export PARALLEL
-export PYTHON="${PREFIX}/bin/python"
-
 export LLVM_MODERN_BUILD_ROOT="${SRC_DIR}/llvm-modern-build"
 export LLVM_MODERN_INSTALL="${SRC_DIR}/llvm-modern-install"
 export LLVM_MODERN_SRC="${SRC_DIR}/llvm-modern-src"
 
 echo "=============================================================="
-echo "Step 1a/2: Modern LLVM/MLIR + Python bindings"
+echo "Step 1: Build modern LLVM/MLIR + Python bindings"
 echo "=============================================================="
 
 cmake_args=(
@@ -64,11 +60,11 @@ if [[ "$("${PYTHON}" -c 'import sysconfig; print(sysconfig.get_config_var("ABIFL
 fi
 
 cmake "${cmake_args[@]}"
-cmake --build "${LLVM_MODERN_BUILD_ROOT}" -j "${PARALLEL}"
+cmake --build "${LLVM_MODERN_BUILD_ROOT}" --parallel "${CPU_COUNT}"
 cmake --install "${LLVM_MODERN_BUILD_ROOT}"
 
 echo "=============================================================="
-echo "Step 1b/2: LLVM 7"
+echo "Step 2: Build LLVM 7"
 echo "=============================================================="
 
 # We don't have "libllvm7.1" package in the Anaconda main channel.
@@ -87,7 +83,9 @@ sed -i 's/cmake_policy(SET CMP0051 OLD)/cmake_policy(SET CMP0051 NEW)/' \
     "${LLVM7_SRC}/llvm/CMakeLists.txt"
 
 # Configure
-cmake -G Ninja -S "${LLVM7_SRC}/llvm" -B "${LLVM7_BUILD_ROOT}" \
+cmake -G Ninja \
+    -S "${LLVM7_SRC}/llvm" \
+    -B "${LLVM7_BUILD_ROOT}" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="${LLVM7_INSTALL}" \
     -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
@@ -103,7 +101,7 @@ cmake -G Ninja -S "${LLVM7_SRC}/llvm" -B "${LLVM7_BUILD_ROOT}" \
     -DLLVM_ENABLE_ZLIB=ON
 
 # Build only the LLVM shared lib
-cmake --build "${LLVM7_BUILD_ROOT}" -j "${PARALLEL}" --target LLVM
+cmake --build "${LLVM7_BUILD_ROOT}" --target LLVM --parallel "${CPU_COUNT}"
 
 # Inspired from: <project-repo>/ci/llvm7-install.sh
 #
@@ -126,7 +124,7 @@ ln -s "${LLVM7_INSTALL}/lib/libLLVM-7.1.so" "${LLVM7_INSTALL}/lib/libLLVM-7.so"
 #cmake --install "${LLVM7_BUILD_ROOT}"
 
 echo "=============================================================="
-echo "Step 2/2: numba_cuda_mlir wheel"
+echo "Step 3: Build numba_cuda_mlir wheel"
 echo "=============================================================="
 
 cd "${SRC_DIR}/src"
