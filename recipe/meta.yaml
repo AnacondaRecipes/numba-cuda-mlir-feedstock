@@ -66,16 +66,6 @@ requirements:
     - zlib  {{ zlib }}
     # Anaconda: libLLVM-7.so links against 'libxml2'
     - libxml2 {{ libxml2 }}
-    # CUDA headers only (no nvcc). numba-cuda-mlir handles CUDA ABI compat at
-    # runtime, so the build-time CUDA version is not significant. NVRTC/nvJitLink
-    # headers aren't needed at build time (those libraries are dlopen'd).
-    - cuda-version 13.*
-    - cuda-cudart-dev
-    # cuda-driver-dev (cuda.h + libcuda stub) is unix-only on conda-forge; on
-    # win-64 cuda.h ships in cuda-cudart-dev, which satisfies FindCUDAToolkit.
-    - cuda-driver-dev  # [unix]
-    - cuda-crt-dev_{{ target_platform }}
-    - cuda-cccl
   run:
     - python
     - numpy
