@@ -57,9 +57,13 @@ requirements:
     # Build deps for the modern LLVM/MLIR Python bindings:
     - numpy {{ numpy }}
     - pybind11
+    # Anaconda: add to fix linter error 'pybind11_use_pybind11_abi'
+    - pybind11-abi
     # nanobind >2.13 breaks numba-cuda-mlir's MLIR bindings
-    - nanobind >=2.9,<2.13
-    - dlpack
+    - nanobind >=2.9,<2.13  # analint: host_section_needs_exact_pinnings
+    # Anaconda: add dlpack version to fix linter error
+    # Ref: https://github.com/NVIDIA/numba-cuda-mlir/blob/v0.4.2/CMakeLists.txt#L44-L48
+    - dlpack 1.1
     # The LLVM-C.dll that we create here for Windows links against zlib. Remove if we
     # migrate LLVM-C.dll creation to the llvmdev-feedstock.
     # Anaconda: libLLVM-7.so links against 'libz'.
@@ -103,10 +107,17 @@ about:
     - src/THIRD-PARTY-LICENSES
   license_family: Other
   summary: numba-cuda-mlir Python Compiler (MLIR/LLVM CUDA kernel backend)
+  description: |
+    Numba-CUDA-MLIR provides a programming model similar to CUDA C++ in Python. It is evolved from Numba-CUDA,
+    and is intended to be compatible with Numba-CUDA kernels. Numba-CUDA-MLIR aims to interoperate well with
+    existing programming models whilst also allowing experts sufficient control over code generation.
   dev_url: https://github.com/NVIDIA/numba-cuda-mlir
   doc_url: https://nvidia.github.io/numba-cuda-mlir
 
 extra:
+  skip-lints:
+    # Skipping due to linter generating a false-positive error
+    - pip_install_args
   recipe-maintainers:
     - conda-forge/cuda-python
     - brandon-b-miller
