@@ -1,0 +1,124 @@
+{% set version = "0.4.2" %}
+# Defined in <project-repo>/ci/llvm-version.env (LLVM 23.x trunk commit)
+{% set llvm_modern_commit = "3cbe75b1433a90a28db068d700b7effd2de8f401" %}
+# Defined in <project-repo>/ci/llvm-version.env ('llvmorg-7.1.0' git tag)
+{% set llvm7_commit = "4856a9330ee01d30e9e11b6c2f991662b4c04b07" %}
+
+package:
+  name: numba-cuda-mlir
+  version: {{ version }}
+
+source:
+  - url: https://github.com/NVIDIA/numba-cuda-mlir/archive/refs/tags/v{{ version }}.tar.gz
+    sha256: c8e68fa7197b11037b07753bd9cfd1e979de50d971f95072718bc14b36c0e150
+    folder: src
+    patches:
+      - patches/pin-python-executable.patch
+      - patches/0001-use-env-variables-to-unvendor-dlpack.patch
+  - url: https://github.com/llvm/llvm-project/archive/{{ llvm_modern_commit }}.tar.gz
+    sha256: a2d6587b0793f7f6fb21c4607e6d86cd40377686f58162fbae5e206d2e24dfe2
+    folder: llvm-modern-src
+  - url: https://github.com/llvm/llvm-project/archive/{{ llvm7_commit }}.tar.gz
+    sha256: 1985537213a4bf88866687b1709815930a2abd1571ac85e2ec53642460a1faab
+    folder: llvm7-src
+
+build:
+  number: 0
+  skip: true  # [not (linux or win) or py<311]
+  # The CUDA runtime libs (cudart, nvrtc, nvjitlink, nvvm) are dlopen'd, and the bundled
+  # legacy-LLVM lib (libLLVM-7.so on unix / LLVM-C.dll on win) plus MLIR C-API modules
+  # are loaded dynamically, so exempt them from the link checks.
+  missing_dso_whitelist:
+    - '*/libLLVM-7.so'  # [unix]
+    - '*/libMLIRPythonCAPI.so'  # [unix]
+    - '*/libMLIRPythonSupport-numba_cuda_mlir.so'  # [unix]
+    - '*/LLVM-C.dll'  # [win]
+    - '*/MLIRPythonCAPI.dll'  # [win]
+    - '*/MLIRModernToNVVM.dll'  # [win]
+    - '*/MLIRPythonSupport-numba_cuda_mlir.dll'  # [win]
+    - '*/nanobind-numba_cuda_mlir.dll'  # [win]
+
+requirements:
+  ignore_run_exports:
+    - cuda-cudart
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - {{ stdlib('c') }}
+    - cmake >=3.24
+    - ninja-base
+    - make  # [unix]
+    - git
+  host:
+    - python
+    - pip
+    - setuptools >=64
+    - wheel
+    # Build deps for the modern LLVM/MLIR Python bindings:
+    - numpy {{ numpy }}
+    - pybind11
+    # Anaconda: add to fix linter error 'pybind11_use_pybind11_abi'
+    - pybind11-abi
+    # nanobind >2.13 breaks numba-cuda-mlir's MLIR bindings
+    - nanobind >=2.9,<2.13  # analint: host_section_needs_exact_pinnings
+    # Anaconda: add dlpack version to fix linter error
+    # Ref: https://github.com/NVIDIA/numba-cuda-mlir/blob/v0.4.2/CMakeLists.txt#L44-L48
+    - dlpack 1.1
+    # The LLVM-C.dll that we create here for Windows links against zlib. Remove if we
+    # migrate LLVM-C.dll creation to the llvmdev-feedstock.
+    # Anaconda: libLLVM-7.so links against 'libz'.
+    - zlib  {{ zlib }}
+    # Anaconda: libLLVM-7.so links against 'libxml2'
+    - libxml2 {{ libxml2 }}
+  run:
+    - python
+    - numpy
+    - typing-extensions  # [py<312]
+    - cuda-version >=12.2,<14.0.0a0
+    - cuda-cudart-dev
+    - cuda-nvrtc
+    - libnvjitlink >=12.3.0
+    - cuda-nvvm-impl
+    - cuda-nvvm-tools
+    - cuda-cccl
+    - cuda-bindings >=12.9.1,<14.0.0
+    - cuda-core >=0.5.1,<2.0.0
+
+test:
+  imports:
+    - numba_cuda_mlir
+    - numba_cuda_mlir._mlir.ir
+  commands:
+    - pip check
+    - python -c "import numba_cuda_mlir; from numba_cuda_mlir import cuda"
+    # Confirm the bundled native libraries are present and located.
+    - python -c "import numba_cuda_mlir._mlir._mlir_libs as L, os; assert os.path.exists(os.path.join(os.path.dirname(L.__file__), 'libMLIRPythonCAPI.so'))"  # [linux]
+    - python -c "import numba_cuda_mlir, os; assert os.path.exists(os.path.join(os.path.dirname(numba_cuda_mlir.__file__), 'lib', 'libLLVM-7.so'))"  # [linux]
+    - python -c "import numba_cuda_mlir._mlir._mlir_libs as L, os; assert os.path.exists(os.path.join(os.path.dirname(L.__file__), 'MLIRPythonCAPI.dll'))"  # [win]
+    - python -c "import numba_cuda_mlir, os; assert os.path.exists(os.path.join(os.path.dirname(numba_cuda_mlir.__file__), 'lib', 'LLVM-C.dll'))"  # [win]
+  requires:
+    - pip
+
+about:
+  home: https://github.com/NVIDIA/numba-cuda-mlir
+  license: Apache-2.0 AND Apache-2.0 WITH LLVM-exception AND NCSA
+  license_file:
+    - src/LICENSE
+    - src/THIRD-PARTY-LICENSES
+  license_family: Other
+  summary: numba-cuda-mlir Python Compiler (MLIR/LLVM CUDA kernel backend)
+  description: |
+    Numba-CUDA-MLIR provides a programming model similar to CUDA C++ in Python. It is evolved from Numba-CUDA,
+    and is intended to be compatible with Numba-CUDA kernels. Numba-CUDA-MLIR aims to interoperate well with
+    existing programming models whilst also allowing experts sufficient control over code generation.
+  dev_url: https://github.com/NVIDIA/numba-cuda-mlir
+  doc_url: https://nvidia.github.io/numba-cuda-mlir
+
+extra:
+  skip-lints:
+    # Skipping due to linter generating a false-positive error
+    - pip_install_args
+  recipe-maintainers:
+    - conda-forge/cuda-python
+    - brandon-b-miller
+    - onurbingol

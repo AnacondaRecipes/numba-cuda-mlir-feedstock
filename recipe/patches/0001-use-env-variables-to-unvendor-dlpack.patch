@@ -1,0 +1,29 @@
+From 8c02cf9579e94d0fc0c66ed9ea5fe73eb89f9cac Mon Sep 17 00:00:00 2001
+From: "Onur R. Bingol" <obingol@anaconda.com>
+Date: Wed, 12 Aug 2026 14:14:09 -0700
+Subject: [PATCH] use env variables to unvendor dlpack
+
+---
+ setup.py | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/setup.py b/setup.py
+index 29b78af..f95730c 100644
+--- a/setup.py
++++ b/setup.py
+@@ -163,6 +163,12 @@ class BuildExtWithCmake(build_ext):
+                     "WARNING: MLIR_DIR is set but the MLIRPythonCAPI link library "
+                     "was not found; MLIRToLLVM70 will not link against MLIRPythonCAPI."
+                 )
++
++        # Add an option to unvendor 'dlpack'
++        dlpack_path = os.environ.get("DLPACK_PATH")
++        if dlpack_path:
++            cmake_cmd.append(f"-DDLPACK_PATH={dlpack_path}")
++
+         self.spawn(cmake_cmd)
+         parallel = 1 if self.parallel is None else self.parallel
+         self.spawn(["cmake", "--build", build_dir, "-j", str(parallel)])
+--
+2.50.1 (Apple Git-155)
+
