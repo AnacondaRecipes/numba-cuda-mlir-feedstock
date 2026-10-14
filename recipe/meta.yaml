@@ -1,22 +1,22 @@
-{% set version = "0.4.2" %}
-# Defined in <project-repo>/ci/llvm-version.env (LLVM 23.x trunk commit)
+{% set version = "0.5.4" %}
 {% set llvm_modern_commit = "3cbe75b1433a90a28db068d700b7effd2de8f401" %}
-# Defined in <project-repo>/ci/llvm-version.env ('llvmorg-7.1.0' git tag)
 {% set llvm7_commit = "4856a9330ee01d30e9e11b6c2f991662b4c04b07" %}
 
+# Defined in <project-repo>/ci/llvm-version.env (LLVM 23.x trunk commit)
+# Defined in <project-repo>/ci/llvm-version.env ('llvmorg-7.1.0' git tag)
 package:
   name: numba-cuda-mlir
   version: {{ version }}
 
 source:
   - url: https://github.com/NVIDIA/numba-cuda-mlir/archive/refs/tags/v{{ version }}.tar.gz
-    sha256: c8e68fa7197b11037b07753bd9cfd1e979de50d971f95072718bc14b36c0e150
+    sha256: d54c30a053a840d9aa36003b0c184b7aec5b7fa013b677b9ccd22d0483977df7
     folder: src
     patches:
       - patches/pin-python-executable.patch
       - patches/0001-use-env-variables-to-unvendor-dlpack.patch
   - url: https://github.com/llvm/llvm-project/archive/{{ llvm_modern_commit }}.tar.gz
-    sha256: a2d6587b0793f7f6fb21c4607e6d86cd40377686f58162fbae5e206d2e24dfe2
+    sha256: 442c70d3d2d33b93a7e787c0bd8db4b7eed76e6ed1cffb25c348a240add192d3
     folder: llvm-modern-src
   - url: https://github.com/llvm/llvm-project/archive/{{ llvm7_commit }}.tar.gz
     sha256: 1985537213a4bf88866687b1709815930a2abd1571ac85e2ec53642460a1faab
@@ -29,14 +29,14 @@ build:
   # legacy-LLVM lib (libLLVM-7.so on unix / LLVM-C.dll on win) plus MLIR C-API modules
   # are loaded dynamically, so exempt them from the link checks.
   missing_dso_whitelist:
-    - '*/libLLVM-7.so'  # [unix]
-    - '*/libMLIRPythonCAPI.so'  # [unix]
-    - '*/libMLIRPythonSupport-numba_cuda_mlir.so'  # [unix]
-    - '*/LLVM-C.dll'  # [win]
-    - '*/MLIRPythonCAPI.dll'  # [win]
-    - '*/MLIRModernToNVVM.dll'  # [win]
-    - '*/MLIRPythonSupport-numba_cuda_mlir.dll'  # [win]
-    - '*/nanobind-numba_cuda_mlir.dll'  # [win]
+    - "*/libLLVM-7.so"  # [unix]
+    - "*/libMLIRPythonCAPI.so"  # [unix]
+    - "*/libMLIRPythonSupport-numba_cuda_mlir.so"  # [unix]
+    - "*/LLVM-C.dll"  # [win]
+    - "*/MLIRPythonCAPI.dll"  # [win]
+    - "*/MLIRModernToNVVM.dll"  # [win]
+    - "*/MLIRPythonSupport-numba_cuda_mlir.dll"  # [win]
+    - "*/nanobind-numba_cuda_mlir.dll"  # [win]
 
 requirements:
   ignore_run_exports:
