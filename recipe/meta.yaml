@@ -16,7 +16,7 @@ source:
       - patches/pin-python-executable.patch
       - patches/0001-use-env-variables-to-unvendor-dlpack.patch
   - url: https://github.com/llvm/llvm-project/archive/{{ llvm_modern_commit }}.tar.gz
-    sha256: a2d6587b0793f7f6fb21c4607e6d86cd40377686f58162fbae5e206d2e24dfe2
+    sha256: 442c70d3d2d33b93a7e787c0bd8db4b7eed76e6ed1cffb25c348a240add192d3
     folder: llvm-modern-src
   - url: https://github.com/llvm/llvm-project/archive/{{ llvm7_commit }}.tar.gz
     sha256: 1985537213a4bf88866687b1709815930a2abd1571ac85e2ec53642460a1faab
