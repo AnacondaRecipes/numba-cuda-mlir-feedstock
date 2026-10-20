@@ -8,6 +8,7 @@
 !/conda-forge.yml
 !.recipe_maintainers.json
 
+!/abs.yaml
 !/anaconda.yaml
 
 # Don't ignore any files/folders if the parent folder is 'un-ignored'
