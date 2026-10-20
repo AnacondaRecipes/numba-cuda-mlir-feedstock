@@ -7,19 +7,11 @@ if not defined LIBRARY_PREFIX set "LIBRARY_PREFIX=%PREFIX%\Library"
 
 echo Building with PARALLEL=%CPU_COUNT% compile jobs
 
-rem LLVM 23 configuration variables
-set "LLVM_MODERN_BUILD_ROOT=%SRC_DIR%\llvm-modern-build"
-set "LLVM_MODERN_SRC=%SRC_DIR%\llvm-modern-src"
-set "LLVM_MODERN_INSTALL=%SRC_DIR%\llvm-modern-install"
-set "MLIR_PKG=%LLVM_MODERN_INSTALL%\python_packages\numba_cuda_mlir_mlir\numba_cuda_mlir\_mlir"
-set "MLIR_LIBS=%MLIR_PKG%\_mlir_libs"
-set "BRIDGE_BUILD=%SRC_DIR%\mlir-modern-to-nvvm-build"
-
-rem LLVM 7 configuration variables
-set "LLVM7_BUILD_ROOT=%SRC_DIR%\llvm7-build"
-set "LLVM7_SRC=%SRC_DIR%\llvm7-src"
-set "LLVM7_INSTALL=%SRC_DIR%\llvm7-install"
-set "LLVM_C_OUT=%SRC_DIR%\llvm-c-install"
+rem Define 'WIN_ARM64' variable on win-arm64
+rem We use this variable to skip builds unavailable to the win-arm64 platform, e.g. LLVM7
+echo conda-build target platform is '%TARGET_PLATFORM%'
+set "WIN_ARM64="
+if /i "%TARGET_PLATFORM%"=="win-arm64" set "WIN_ARM64=1"
 
 rem We don't use it, but keep it for compatibility with CF
 set "LAUNCHER_ARGS="
@@ -41,6 +33,14 @@ if "%FT%"=="t" (
   set "FIND_ABI_ARGS=-DPython_FIND_ABI=OFF;OFF;OFF;ON -DPython3_FIND_ABI=OFF;OFF;OFF;ON"
   set "Python_FIND_ABI=OFF;OFF;OFF;ON"
 )
+
+rem LLVM 23 configuration variables
+set "LLVM_MODERN_BUILD_ROOT=%SRC_DIR%\llvm-modern-build"
+set "LLVM_MODERN_SRC=%SRC_DIR%\llvm-modern-src"
+set "LLVM_MODERN_INSTALL=%SRC_DIR%\llvm-modern-install"
+set "MLIR_PKG=%LLVM_MODERN_INSTALL%\python_packages\numba_cuda_mlir_mlir\numba_cuda_mlir\_mlir"
+set "MLIR_LIBS=%MLIR_PKG%\_mlir_libs"
+set "BRIDGE_BUILD=%SRC_DIR%\mlir-modern-to-nvvm-build"
 
 echo ==============================================================
 echo Step 1a: Build modern LLVM/MLIR + Python bindings
@@ -132,6 +132,17 @@ for %%E in (dll lib) do for /f "delims=" %%F in ('dir /b /s "%BRIDGE_BUILD%\MLIR
 rem Verify
 if not exist "%MLIR_LIBS%\MLIRModernToNVVM.dll" (echo ERROR: MLIRModernToNVVM.dll was not produced & exit /b 1)
 
+rem Skip LLVM7 builds on win-arm64
+rem LLVM 7 predates Windows on Arm, and the legacy path it feeds is only reached below sm_100,
+rem which no Arm Windows platform is
+if defined WIN_ARM64 goto skip_llvm7
+
+rem LLVM 7 configuration variables
+set "LLVM7_BUILD_ROOT=%SRC_DIR%\llvm7-build"
+set "LLVM7_SRC=%SRC_DIR%\llvm7-src"
+set "LLVM7_INSTALL=%SRC_DIR%\llvm7-install"
+set "LLVM_C_OUT=%SRC_DIR%\llvm-c-install"
+
 echo ==============================================================
 echo Step 2a: Build LLVM7
 echo ==============================================================
@@ -184,6 +195,8 @@ rem equivalent of Linux's libLLVM-7.so
 "%PYTHON%" "%RECIPE_DIR%\build_llvm_c_dll.py" --lib-dir "%LLVM7_INSTALL%\lib" --out-dir "%LLVM_C_OUT%" --dll-name LLVM-C
 if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 
+:skip_llvm7
+
 echo ==============================================================
 echo Step 3: Build numba_cuda_mlir wheel
 echo ==============================================================
@@ -195,9 +208,10 @@ set "CUDAToolkit_ROOT=%LIBRARY_PREFIX%"
 set "DLPACK_PATH=%LIBRARY_PREFIX%"
 set "MLIR_DIR=%LLVM_MODERN_INSTALL%\lib\cmake\mlir"
 rem setup.py._stage_libllvm7 bundles this DLL into numba_cuda_mlir\lib\ (keeps the
-rem basename on Windows). At runtime CAPILoader LoadLibrary's it. No symlink step
-rem (that is Linux-only).
-set "LIBLLVM7=%LLVM_C_OUT%\LLVM-C.dll"
+rem basename on Windows). At runtime CAPILoader LoadLibrary's it.
+rem No symlink step (that is Linux-only).
+rem 'LIBLLVM7' is left unset on win-arm64, where setup.py skips the staging step anyway.
+if not defined WIN_ARM64 set "LIBLLVM7=%LLVM_C_OUT%\LLVM-C.dll"
 
 "%PYTHON%" -m pip install . -vv --no-deps --no-build-isolation
 if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
