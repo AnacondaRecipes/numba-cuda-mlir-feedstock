@@ -8,13 +8,13 @@ Subject: [PATCH] use env variables to unvendor dlpack
  1 file changed, 6 insertions(+)
 
 diff --git a/setup.py b/setup.py
-index 29b78af..f95730c 100644
+index 3481967..2aaec10 100644
 --- a/setup.py
 +++ b/setup.py
-@@ -163,6 +163,12 @@ class BuildExtWithCmake(build_ext):
-                     "WARNING: MLIR_DIR is set but the MLIRPythonCAPI link library "
-                     "was not found; MLIRToLLVM70 will not link against MLIRPythonCAPI."
-                 )
+@@ -167,6 +167,12 @@ class BuildExtWithCmake(build_ext):
+                         "WARNING: MLIR_DIR is set but the MLIRPythonCAPI link library "
+                         "was not found; MLIRToLLVM70 will not link against MLIRPythonCAPI."
+                     )
 +
 +        # Add an option to unvendor 'dlpack'
 +        dlpack_path = os.environ.get("DLPACK_PATH")

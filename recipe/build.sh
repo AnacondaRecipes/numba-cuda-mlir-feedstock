@@ -82,6 +82,10 @@ export LLVM7_INSTALL="${SRC_DIR}/llvm7-install"
 sed -i 's/cmake_policy(SET CMP0051 OLD)/cmake_policy(SET CMP0051 NEW)/' \
     "${LLVM7_SRC}/llvm/CMakeLists.txt"
 
+# LLVM_BUILD_LLVM_DYLIB=ON is required: without it LLVM 7 skips tools/llvm-shlib
+# (tools/CMakeLists.txt:20-22), so the 'LLVM' target (libLLVM-7.so) built below
+# does not exist. Linux only; on MSVC, LLVM 7 cannot build a usable libLLVM, so
+# bld.bat synthesizes LLVM-C.dll from the static libs instead.
 # Configure
 cmake -G Ninja \
     -S "${LLVM7_SRC}/llvm" \
