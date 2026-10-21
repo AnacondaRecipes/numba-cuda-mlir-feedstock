@@ -15,11 +15,12 @@ source:
     patches:
       - patches/pin-python-executable.patch
       - patches/0001-use-env-variables-to-unvendor-dlpack.patch
-  - url: https://github.com/llvm/llvm-project/archive/{{ llvm_modern_commit }}.tar.gz
-    sha256: 442c70d3d2d33b93a7e787c0bd8db4b7eed76e6ed1cffb25c348a240add192d3
+  # Direct source archive download from GitHub is not stable. Use git-clone instead.
+  - git_url: https://github.com/llvm/llvm-project.git
+    git_rev: {{ llvm_modern_commit }}
     folder: llvm-modern-src
-  - url: https://github.com/llvm/llvm-project/archive/{{ llvm7_commit }}.tar.gz
-    sha256: 1985537213a4bf88866687b1709815930a2abd1571ac85e2ec53642460a1faab
+  - git_url: https://github.com/llvm/llvm-project.git
+    git_rev: {{ llvm7_commit }}
     folder: llvm7-src
 
 build:
@@ -41,10 +42,10 @@ build:
     - '*/MLIRModernToNVVM.dll'  # [win]
     - '*/MLIRPythonSupport-numba_cuda_mlir.dll'  # [win]
     - '*/nanobind-numba_cuda_mlir.dll'  # [win]
-
-requirements:
   ignore_run_exports:
     - cuda-cudart
+
+requirements:
   build:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
