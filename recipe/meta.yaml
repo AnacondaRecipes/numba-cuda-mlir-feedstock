@@ -42,10 +42,10 @@ build:
     - '*/MLIRModernToNVVM.dll'  # [win]
     - '*/MLIRPythonSupport-numba_cuda_mlir.dll'  # [win]
     - '*/nanobind-numba_cuda_mlir.dll'  # [win]
-
-requirements:
   ignore_run_exports:
     - cuda-cudart
+
+requirements:
   build:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
