@@ -1,4 +1,4 @@
-{% set version = "0.5.4" %}
+{% set version = "0.6.0" %}
 # Defined in <project-repo>/ci/llvm-version.env (LLVM 23.x trunk commit)
 {% set llvm_modern_commit = "3cbe75b1433a90a28db068d700b7effd2de8f401" %}
 # Defined in <project-repo>/ci/llvm-version.env ('llvmorg-7.1.0' git tag)
@@ -10,7 +10,7 @@ package:
 
 source:
   - url: https://github.com/NVIDIA/numba-cuda-mlir/archive/refs/tags/v{{ version }}.tar.gz
-    sha256: d54c30a053a840d9aa36003b0c184b7aec5b7fa013b677b9ccd22d0483977df7
+    sha256: c54789444c1a66087f6f613c221bfa37fa15b37671285983c511814da302c273
     folder: src
     patches:
       - patches/pin-python-executable.patch
@@ -25,7 +25,7 @@ source:
 
 build:
   number: 0
-  skip: true  # [py<310 or not (linux or win)]
+  skip: true  # [py<311 or not (linux or win)]
   # conda-build runs bld.bat / build.sh automatically (no 'script: file:' needed).
   # Bare names forward the variable from the host environment; 'NAME=value' sets a default.
   script_env:
@@ -66,8 +66,6 @@ requirements:
     - pybind11-abi
     # nanobind >2.13 breaks numba-cuda-mlir's MLIR bindings
     - nanobind >=2.9,<2.13  # analint: host_section_needs_exact_pinnings
-    # nanobind/stubgen.py requires the 'typing_extensions' package on py<3.11
-    - typing-extensions  # [py<311]
     # Anaconda: add dlpack version to fix linter error
     # Ref: https://github.com/NVIDIA/numba-cuda-mlir/blob/v0.5.4/CMakeLists.txt#L44-L48
     - dlpack 1.1
