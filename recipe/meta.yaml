@@ -25,7 +25,7 @@ source:
 
 build:
   number: 0
-  skip: true  # [py<310 or not (linux or win)]
+  skip: true  # [py<311 or not (linux or win)]
   # conda-build runs bld.bat / build.sh automatically (no 'script: file:' needed).
   # Bare names forward the variable from the host environment; 'NAME=value' sets a default.
   script_env:
@@ -66,8 +66,6 @@ requirements:
     - pybind11-abi
     # nanobind >2.13 breaks numba-cuda-mlir's MLIR bindings
     - nanobind >=2.9,<2.13  # analint: host_section_needs_exact_pinnings
-    # nanobind/stubgen.py requires the 'typing_extensions' package on py<3.11
-    - typing-extensions  # [py<311]
     # Anaconda: add dlpack version to fix linter error
     # Ref: https://github.com/NVIDIA/numba-cuda-mlir/blob/v0.5.4/CMakeLists.txt#L44-L48
     - dlpack 1.1
